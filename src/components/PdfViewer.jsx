@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHand
 import * as pdfjsLib from 'pdfjs-dist';
 import { PDFDocument, rgb, StandardFonts, degrees, radians } from 'pdf-lib';
 import workerSrc from 'pdfjs-dist/build/pdf.worker.mjs?url';
-import { RotateCw, ZoomIn, ZoomOut } from 'lucide-react';
+import { RotateCw, ZoomIn, ZoomOut, MousePointer2, Type, Pen, Highlighter } from 'lucide-react';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
 
@@ -13,7 +13,63 @@ const hexToRgb = (hex) => {
   return rgb(r, g, b);
 };
 
-const PdfViewer = forwardRef(({ pdfUrl, file, activeTool = 'select' }, ref) => {
+const Thumbnail = ({ pageNum, pdfDoc, onClick, isActive, rotation }) => {
+  const canvasRef = useRef(null);
+  
+  useEffect(() => {
+    let renderTask = null;
+    const renderThumb = async () => {
+      if (!pdfDoc || !canvasRef.current) return;
+      try {
+        const page = await pdfDoc.getPage(pageNum);
+        const viewport = page.getViewport({ scale: 0.2, rotation: page.rotate + rotation });
+        const canvas = canvasRef.current;
+        const context = canvas.getContext('2d');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        renderTask = page.render({ canvasContext: context, viewport });
+        await renderTask.promise;
+      } catch (err) {
+        if (err.name !== 'RenderingCancelledException') {
+          console.error("Error rendering thumbnail:", err);
+        }
+      }
+    };
+    renderThumb();
+    return () => {
+      if (renderTask) renderTask.cancel();
+    };
+  }, [pdfDoc, pageNum, rotation]);
+  
+  return (
+    <div 
+      onClick={onClick} 
+      style={{ 
+        padding: '1rem', 
+        cursor: 'pointer', 
+        borderBottom: '1px solid #e2e8f0', 
+        background: isActive ? '#eff6ff' : 'transparent', 
+        display: 'flex', 
+        flexDirection: 'column', 
+        alignItems: 'center', 
+        gap: '0.5rem' 
+      }}
+    >
+      <canvas 
+        ref={canvasRef} 
+        style={{ 
+          maxWidth: '100%', 
+          height: 'auto', 
+          border: isActive ? '2px solid #3b82f6' : '1px solid #cbd5e1', 
+          boxShadow: '0 2px 4px rgba(0,0,0,0.1)' 
+        }} 
+      />
+      <span style={{ fontSize: '0.85rem', color: isActive ? '#1d4ed8' : '#64748b', fontWeight: isActive ? 600 : 400 }}>{pageNum}</span>
+    </div>
+  );
+};
+
+const PdfViewer = forwardRef(({ pdfUrl, file, activeTool = 'select', setActiveTool }, ref) => {
   const [pdfDoc, setPdfDoc] = useState(null);
   const [pageNumber, setPageNumber] = useState(1);
   const [numPages, setNumPages] = useState(0);
@@ -27,7 +83,11 @@ const PdfViewer = forwardRef(({ pdfUrl, file, activeTool = 'select' }, ref) => {
   const [drawings, setDrawings] = useState({});
   const [currentStroke, setCurrentStroke] = useState(null);
   
-  const autoRotationChecked = useRef(false);
+  const sigInputRef = useRef(null);
+  const [signatures, setSignatures] = useState({});
+  const [uploadedSignatureUrl, setUploadedSignatureUrl] = useState(null);
+  const [uploadedSignatureBytes, setUploadedSignatureBytes] = useState(null);
+
   const renderTaskRef = useRef(null);
 
   useImperativeHandle(ref, () => ({
@@ -104,6 +164,29 @@ const PdfViewer = forwardRef(({ pdfUrl, file, activeTool = 'select' }, ref) => {
           }
         }
 
+        // Apply Signatures
+        for (const [pageNumStr, pageSigs] of Object.entries(signatures)) {
+          const pageIndex = parseInt(pageNumStr) - 1;
+          const page = pages[pageIndex];
+          const pageHeight = page.getHeight();
+          
+          for (const sig of pageSigs) {
+            let embeddedImage;
+            if (sig.type === 'image/png') {
+              embeddedImage = await pdfLibDoc.embedPng(sig.bytes);
+            } else {
+              embeddedImage = await pdfLibDoc.embedJpg(sig.bytes);
+            }
+            
+            page.drawImage(embeddedImage, {
+              x: sig.x,
+              y: pageHeight - sig.y - sig.height,
+              width: sig.width,
+              height: sig.height
+            });
+          }
+        }
+
         return await pdfLibDoc.save();
       } catch (err) {
         console.error("[PdfViewer] Export error:", err);
@@ -123,10 +206,6 @@ const PdfViewer = forwardRef(({ pdfUrl, file, activeTool = 'select' }, ref) => {
         setNumPages(pdf.numPages);
         setPageNumber(1);
         setRotation(0);
-        autoRotationChecked.current = false;
-        if (canvasRef.current) {
-          canvasRef.current.dataset.autoRotated = "";
-        }
       } catch (err) {
         console.error("Error loading PDF:", err);
       }
@@ -144,37 +223,13 @@ const PdfViewer = forwardRef(({ pdfUrl, file, activeTool = 'select' }, ref) => {
 
     try {
       const page = await pdfDoc.getPage(pageNumber);
+      // Removed auto-rotation bug logic. Now trusting native page.rotate + userRotation
       const viewport = page.getViewport({ scale, rotation: page.rotate + rotation });
       
       const canvas = canvasRef.current;
       const context = canvas.getContext('2d');
       const textContent = await page.getTextContent();
       
-      if (!canvas.dataset.autoRotated) {
-        let angleCounts = { 0: 0, 90: 0, 180: 0, 270: 0 };
-        textContent.items.forEach(item => {
-          if (item.str && item.str.trim() && item.transform) {
-            const a = item.transform[0];
-            const b = item.transform[1];
-            const angle = Math.round(Math.atan2(b, a) * (180 / Math.PI));
-            const normalized = ((angle % 360) + 360) % 360;
-            
-            if (normalized >= 45 && normalized < 135) angleCounts[90]++;
-            else if (normalized >= 135 && normalized < 225) angleCounts[180]++;
-            else if (normalized >= 225 && normalized < 315) angleCounts[270]++;
-            else angleCounts[0]++;
-          }
-        });
-        
-        const dominantAngle = parseInt(Object.keys(angleCounts).reduce((a, b) => angleCounts[a] > angleCounts[b] ? a : b));
-        if (dominantAngle !== 0) {
-          setRotation(dominantAngle);
-          canvas.dataset.autoRotated = "true";
-          return;
-        }
-        canvas.dataset.autoRotated = "true";
-      }
-
       canvas.height = viewport.height;
       canvas.width = viewport.width;
 
@@ -259,7 +314,9 @@ const PdfViewer = forwardRef(({ pdfUrl, file, activeTool = 'select' }, ref) => {
       
       setTextLines(groupedLines);
     } catch (err) {
-      console.error("Error rendering page:", err);
+      if (err.name !== 'RenderingCancelledException') {
+        console.error("Error rendering page:", err);
+      }
     }
   }, [pdfDoc, pageNumber, scale, rotation]);
 
@@ -267,8 +324,54 @@ const PdfViewer = forwardRef(({ pdfUrl, file, activeTool = 'select' }, ref) => {
     renderPage();
   }, [renderPage]);
 
+  // Signature Handlers
+  const handleSigUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const arrayBuffer = await file.arrayBuffer();
+    const dataUrl = URL.createObjectURL(file);
+    setUploadedSignatureUrl(dataUrl);
+    setUploadedSignatureBytes({ bytes: arrayBuffer, type: file.type });
+  };
+
+  const handleCanvasClick = (e) => {
+    if (activeTool !== 'sign') return;
+    
+    if (!uploadedSignatureUrl) {
+      sigInputRef.current?.click();
+      return;
+    }
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / scale;
+    const y = (e.clientY - rect.top) / scale;
+    
+    const width = 150; 
+    const height = 50; 
+
+    setSignatures(prev => {
+      const pageSigs = prev[pageNumber] || [];
+      return {
+        ...prev,
+        [pageNumber]: [
+          ...pageSigs, 
+          { 
+            x: x - width/2, 
+            y: y - height/2, 
+            width, 
+            height, 
+            dataUrl: uploadedSignatureUrl, 
+            bytes: uploadedSignatureBytes.bytes, 
+            type: uploadedSignatureBytes.type 
+          }
+        ]
+      };
+    });
+  };
+
   // Drawing Handlers
   const handlePointerDown = (e) => {
+    if (activeTool === 'sign') return;
     if (activeTool !== 'draw' && activeTool !== 'highlight') return;
     const rect = e.currentTarget.getBoundingClientRect();
     const x = (e.clientX - rect.left) / scale;
@@ -341,152 +444,235 @@ const PdfViewer = forwardRef(({ pdfUrl, file, activeTool = 'select' }, ref) => {
   const isTextTool = activeTool === 'text';
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingBottom: '80px' }}>
-      <div style={{ marginBottom: '1rem', display: 'flex', gap: '0.5rem', background: 'var(--bg-panel)', padding: '0.5rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-        <button onClick={() => setScale(p => Math.max(0.5, p - 0.25))} className="tool-btn" title="Zoom Out">
-          <ZoomOut size={18} />
-        </button>
-        <span style={{ display: 'flex', alignItems: 'center', color: '#64748b', fontSize: '0.9rem', width: '40px', justifyContent: 'center', userSelect: 'none' }}>
-          {Math.round(scale * 100)}%
-        </span>
-        <button onClick={() => setScale(p => Math.min(3, p + 0.25))} className="tool-btn" title="Zoom In">
-          <ZoomIn size={18} />
-        </button>
-        <div className="toolbar-divider" />
-        <button onClick={() => setRotation(prev => (prev + 90) % 360)} className="tool-btn" title="Rotate">
-          <RotateCw size={18} /> 
-        </button>
-      </div>
+    <div style={{ display: 'flex', flexDirection: 'row', width: '100%', height: '100%', overflow: 'hidden' }}>
       
-      <div className="pdf-page-container">
-        <canvas ref={canvasRef} className="pdf-canvas" />
+      {/* Left Sidebar Thumbnail Rail */}
+      <div style={{ 
+        width: '240px', 
+        minWidth: '240px', 
+        height: '100%', 
+        overflowY: 'auto', 
+        background: '#f8fafc', 
+        borderRight: '1px solid var(--border-color)',
+        display: 'flex',
+        flexDirection: 'column'
+      }}>
+        {pdfDoc && Array.from({ length: numPages }, (_, i) => (
+          <Thumbnail 
+            key={i + 1} 
+            pageNum={i + 1} 
+            pdfDoc={pdfDoc} 
+            isActive={pageNumber === i + 1} 
+            onClick={() => setPageNumber(i + 1)}
+            rotation={rotation}
+          />
+        ))}
+      </div>
+
+      {/* Main Centered Workspace */}
+      <div style={{ flex: 1, backgroundColor: '#f3f4f6', overflow: 'auto', position: 'relative' }}>
         
-        {/* Drawing Layer */}
-        <svg 
-          className={`drawing-layer ${activeTool === 'draw' || activeTool === 'highlight' ? 'active' : ''}`}
-          width={canvasRef.current?.width || 0}
-          height={canvasRef.current?.height || 0}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerLeave={handlePointerUp}
-          style={{ touchAction: 'none' }}
-        >
-          <g transform={`scale(${scale})`}>
-            {(drawings[pageNumber] || []).map((stroke, i) => (
-              <path 
-                key={i} 
-                d={stroke.path} 
-                stroke={stroke.color} 
-                strokeWidth={stroke.thickness} 
-                fill="none" 
-                strokeOpacity={stroke.opacity} 
-                strokeLinecap="round" 
-                strokeLinejoin="round" 
-                style={stroke.tool === 'highlight' ? { mixBlendMode: 'multiply' } : {}}
-              />
-            ))}
-            {currentStroke && (
-              <path 
-                d={currentStroke.path} 
-                stroke={currentStroke.color} 
-                strokeWidth={currentStroke.thickness} 
-                fill="none" 
-                strokeOpacity={currentStroke.opacity} 
-                strokeLinecap="round" 
-                strokeLinejoin="round"
-                style={currentStroke.tool === 'highlight' ? { mixBlendMode: 'multiply' } : {}}
-              />
-            )}
-          </g>
-        </svg>
+        {/* Floating Toolbar */}
+        <div style={{ 
+          position: 'fixed', 
+          bottom: '2rem', 
+          left: 'calc(240px + (100vw - 240px) / 2)', 
+          transform: 'translateX(-50%)',
+          display: 'flex', 
+          alignItems: 'center',
+          gap: '0.25rem', 
+          background: 'white', 
+          padding: '0.5rem', 
+          borderRadius: '9999px', 
+          border: '1px solid var(--border-color)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15)',
+          zIndex: 100
+        }}>
+          {setActiveTool && (
+            <>
+              <button className={`tool-btn ${activeTool === 'select' ? 'active' : ''}`} onClick={() => setActiveTool('select')} title="Select">
+                <MousePointer2 size={18} />
+              </button>
+              <button className={`tool-btn ${activeTool === 'text' ? 'active' : ''}`} onClick={() => setActiveTool('text')} title="Edit Text">
+                <Type size={18} />
+              </button>
+              <button className={`tool-btn ${activeTool === 'draw' ? 'active' : ''}`} onClick={() => setActiveTool('draw')} title="Draw">
+                <Pen size={18} />
+              </button>
+              <button className={`tool-btn ${activeTool === 'highlight' ? 'active' : ''}`} onClick={() => setActiveTool('highlight')} title="Highlight">
+                <Highlighter size={18} />
+              </button>
+              <button className={`tool-btn ${activeTool === 'sign' ? 'active' : ''}`} onClick={() => setActiveTool('sign')} title="Sign">
+                <Pen size={18} color={activeTool === 'sign' ? 'inherit' : '#10b981'} />
+              </button>
+              <div className="toolbar-divider" />
+            </>
+          )}
 
-        {/* Text Layer */}
-        <div className="text-layer" style={{ width: canvasRef.current?.width, height: canvasRef.current?.height }}>
-          {textLines.map((line, index) => {
-            const [scaleX, skewY, skewX, scaleY, tx, ty] = line.transform;
-            const fontSize = Math.sqrt(scaleX * scaleX + skewY * skewY);
-            const angle = Math.atan2(skewY, scaleX) * (180 / Math.PI);
+          <button onClick={() => setScale(p => Math.max(0.5, p - 0.25))} className="tool-btn" title="Zoom Out">
+            <ZoomOut size={18} />
+          </button>
+          <span style={{ display: 'flex', alignItems: 'center', color: '#64748b', fontSize: '0.9rem', width: '45px', justifyContent: 'center', userSelect: 'none' }}>
+            {Math.round(scale * 100)}%
+          </span>
+          <button onClick={() => setScale(p => Math.min(3, p + 0.25))} className="tool-btn" title="Zoom In">
+            <ZoomIn size={18} />
+          </button>
+          <div className="toolbar-divider" />
+          <button onClick={() => setRotation(prev => (prev + 90) % 360)} className="tool-btn" title="Rotate">
+            <RotateCw size={18} /> 
+          </button>
+        </div>
 
-            const isEditing = editingId === index;
-            const pageEdits = edits[pageNumber] || {};
-            const currentText = pageEdits[index] ? pageEdits[index].newValue : line.originalStr;
+        {/* Scrollable Canvas Container Wrapper */}
+        <div style={{ display: 'flex', justifyContent: 'center', minHeight: '100%', padding: '2rem 0 6rem 0', boxSizing: 'border-box' }}>
+          
+          <div className="pdf-page-container" onClick={handleCanvasClick} style={{ 
+            cursor: activeTool === 'sign' ? 'crosshair' : 'default',
+            margin: '0 auto', 
+            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+            backgroundColor: 'white',
+            position: 'relative',
+            height: 'fit-content'
+          }}>
+            <canvas ref={canvasRef} className="pdf-canvas" style={{ display: 'block' }} />
             
-            if (!currentText.trim() && !isEditing && !line.originalStr.trim()) return null;
-
-            const isEdited = currentText !== line.originalStr;
-
-            const style = {
-              position: 'absolute',
-              left: `${tx}px`,
-              top: `${ty - fontSize}px`,
-              fontFamily: isEdited ? 'Helvetica, sans-serif' : line.fontName,
-              fontSize: `${fontSize}px`,
-              transform: `rotate(${angle}deg)`,
-              transformOrigin: '0% 100%',
-              lineHeight: 1,
-              whiteSpace: 'pre',
-              color: isEdited ? 'black' : undefined,
-              backgroundColor: isEdited ? 'white' : undefined,
-              minWidth: isEdited ? `${line.width}px` : 'auto',
-              cursor: isTextTool ? 'text' : 'default',
-              pointerEvents: isTextTool ? 'auto' : 'none'
-            };
-
-            if (isEditing) {
-              return (
-                <input
-                  key={index}
-                  autoFocus
-                  className="editing-node"
-                  style={{ 
-                    ...style, 
-                    color: 'black',
-                    backgroundColor: 'white',
+            {/* Signatures Layer */}
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'none', zIndex: 15 }}>
+              {(signatures[pageNumber] || []).map((sig, i) => (
+                <img 
+                  key={i} 
+                  src={sig.dataUrl} 
+                  style={{
+                    position: 'absolute',
+                    left: `${sig.x * scale}px`,
+                    top: `${sig.y * scale}px`,
+                    width: `${sig.width * scale}px`,
+                    height: `${sig.height * scale}px`,
                     pointerEvents: 'auto',
-                    minWidth: `${Math.max(line.width, 50)}px`,
-                    width: `${currentText.length + 1}ch` 
-                  }} 
-                  value={currentText}
-                  onChange={(e) => handleTextChange(index, e.target.value)}
-                  onBlur={() => setEditingId(null)}
-                  onKeyDown={handleKeyDown}
+                    border: '1px dashed rgba(0,0,0,0.2)'
+                  }}
+                  alt="Signature"
                 />
-              );
-            }
+              ))}
+            </div>
+            
+            <input 
+              type="file"
+              ref={sigInputRef}
+              onChange={handleSigUpload}
+              accept="image/png, image/jpeg"
+              style={{ display: 'none' }}
+            />
+            
+            {/* Drawing Layer */}
+            <svg 
+              className={`drawing-layer ${activeTool === 'draw' || activeTool === 'highlight' ? 'active' : ''}`}
+              width={canvasRef.current?.width || 0}
+              height={canvasRef.current?.height || 0}
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onPointerLeave={handlePointerUp}
+              style={{ touchAction: 'none', position: 'absolute', top: 0, left: 0 }}
+            >
+              <g transform={`scale(${scale})`}>
+                {(drawings[pageNumber] || []).map((stroke, i) => (
+                  <path 
+                    key={i} 
+                    d={stroke.path} 
+                    stroke={stroke.color} 
+                    strokeWidth={stroke.thickness} 
+                    fill="none" 
+                    strokeOpacity={stroke.opacity} 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    style={stroke.tool === 'highlight' ? { mixBlendMode: 'multiply' } : {}}
+                  />
+                ))}
+                {currentStroke && (
+                  <path 
+                    d={currentStroke.path} 
+                    stroke={currentStroke.color} 
+                    strokeWidth={currentStroke.thickness} 
+                    fill="none" 
+                    strokeOpacity={currentStroke.opacity} 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round"
+                    style={currentStroke.tool === 'highlight' ? { mixBlendMode: 'multiply' } : {}}
+                  />
+                )}
+              </g>
+            </svg>
 
-            return (
-              <span
-                key={index}
-                style={style}
-                onClick={() => handleTextClick(index)}
-              >
-                {currentText}
-              </span>
-            );
-          })}
+            {/* Text Layer */}
+            <div className="text-layer" style={{ width: canvasRef.current?.width, height: canvasRef.current?.height, position: 'absolute', top: 0, left: 0 }}>
+              {textLines.map((line, index) => {
+                const [scaleX, skewY, skewX, scaleY, tx, ty] = line.transform;
+                const fontSize = Math.sqrt(scaleX * scaleX + skewY * skewY);
+                const angle = Math.atan2(skewY, scaleX) * (180 / Math.PI);
+
+                const isEditing = editingId === index;
+                const pageEdits = edits[pageNumber] || {};
+                const currentText = pageEdits[index] ? pageEdits[index].newValue : line.originalStr;
+                
+                if (!currentText.trim() && !isEditing && !line.originalStr.trim()) return null;
+
+                const isEdited = currentText !== line.originalStr;
+
+                const style = {
+                  position: 'absolute',
+                  left: `${tx}px`,
+                  top: `${ty - fontSize}px`,
+                  fontFamily: isEdited ? 'Helvetica, sans-serif' : line.fontName,
+                  fontSize: `${fontSize}px`,
+                  transform: `rotate(${angle}deg)`,
+                  transformOrigin: '0% 100%',
+                  lineHeight: 1,
+                  whiteSpace: 'pre',
+                  color: isEdited ? 'black' : undefined,
+                  backgroundColor: isEdited ? 'white' : undefined,
+                  minWidth: isEdited ? `${line.width}px` : 'auto',
+                  cursor: isTextTool ? 'text' : 'default',
+                  pointerEvents: isTextTool ? 'auto' : 'none'
+                };
+
+                if (isEditing) {
+                  return (
+                    <input
+                      key={index}
+                      autoFocus
+                      className="editing-node"
+                      style={{ 
+                        ...style, 
+                        color: 'black',
+                        backgroundColor: 'white',
+                        pointerEvents: 'auto',
+                        minWidth: `${Math.max(line.width, 50)}px`,
+                        width: `${currentText.length + 1}ch` 
+                      }} 
+                      value={currentText}
+                      onChange={(e) => handleTextChange(index, e.target.value)}
+                      onBlur={() => setEditingId(null)}
+                      onKeyDown={handleKeyDown}
+                    />
+                  );
+                }
+
+                return (
+                  <span
+                    key={index}
+                    style={style}
+                    onClick={() => handleTextClick(index)}
+                  >
+                    {currentText}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </div>
-      
-      {numPages > 1 && (
-        <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem', color: '#171717', alignItems: 'center', background: 'var(--bg-panel)', padding: '0.5rem 1rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-          <button 
-            disabled={pageNumber <= 1} 
-            onClick={() => setPageNumber(p => p - 1)}
-            className="tool-btn"
-          >
-            Previous
-          </button>
-          <span style={{ fontSize: '0.9rem', color: '#64748b', userSelect: 'none' }}>Page {pageNumber} of {numPages}</span>
-          <button 
-            disabled={pageNumber >= numPages} 
-            onClick={() => setPageNumber(p => p + 1)}
-            className="tool-btn"
-          >
-            Next
-          </button>
-        </div>
-      )}
     </div>
   );
 });
