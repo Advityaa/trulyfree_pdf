@@ -210,3 +210,70 @@
   border-radius: 2px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
+
+@media (max-width: 768px) {
+  .toolbar-title {
+    top: 1rem;
+    left: 1rem;
+    font-size: 1.1rem;
+  }
+
+  .floating-toolbar {
+    width: 95vw;
+    max-width: none;
+    overflow-x: auto;
+    justify-content: flex-start;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 24px;
+    bottom: 1rem;
+    padding: 0.5rem 1rem;
+    box-sizing: border-box;
+  }
+
+  .floating-toolbar::-webkit-scrollbar {
+    display: none; /* Hide scrollbar for cleaner look */
+  }
+
+  .tool-btn {
+    padding: 0.8rem; /* larger touch targets 44px+ */
+    flex-shrink: 0; /* Prevent shrinking in scroll view */
+  }
+
+  .mobile-modal {
+    position: fixed !important;
+    top: auto !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    border-radius: 24px 24px 0 0 !important;
+    max-height: 85vh !important;
+    box-sizing: border-box !important;
+    margin: 0 !important;
+    transform: none !important;
+  }
+
+  .pdf-workspace {
+    padding: 1rem 0; /* Full bleed on mobile */
+  }
+
+  .pdf-page-container {
+    border-radius: 0; /* Full bleed */
+  }
+
+  /* Home page overrides */
+  .home-header {
+    padding: 1rem !important;
+  }
+  .home-main {
+    padding: 2rem 1rem !important;
+  }
+  .home-title {
+    font-size: 2.25rem !important;
+  }
+  
+  .hide-on-mobile {
+    display: none !important;
+  }
+}

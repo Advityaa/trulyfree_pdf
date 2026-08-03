@@ -12,9 +12,10 @@
     "start:all": "concurrently \"npm run backend\" \"npm run dev\""
   },
   "dependencies": {
+    "@use-gesture/react": "^10.3.1",
     "file-saver": "^2.0.5",
     "lucide-react": "^1.26.0",
-    "pdf-lib": "^1.17.1",
+    "pdf-lib": "npm:@cantoo/pdf-lib@^2.8.1",
     "pdfjs-dist": "^6.1.200",
     "puppeteer": "^25.3.0",
     "react": "^19.2.7",

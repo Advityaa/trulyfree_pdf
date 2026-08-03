@@ -30,6 +30,7 @@ const TOOL_CATEGORIES = [
     tools: [
       { id: 'editor', name: 'PDF Editor', icon: PenTool, path: '/editor' },
       { id: 'sign', name: 'Sign PDF', icon: FileEdit, path: '/editor' },
+      { id: 'redact', name: 'Redact PDF', icon: Shield, path: '/editor' },
     ]
   }
 ];
@@ -51,28 +52,31 @@ export default function Home() {
     }
   };
 
-  const handleToolClick = (toolPath) => {
-    navigate(toolPath);
+  const handleToolClick = (toolPath, toolId) => {
+    let initialTool = 'select';
+    if (toolId === 'sign') initialTool = 'sign';
+    if (toolId === 'editor') initialTool = 'text'; // Default to text edit for editor
+    navigate(toolPath, { state: { initialTool } });
   };
 
   return (
     <div className="home-container" style={{ minHeight: '100vh', width: '100vw', display: 'flex', flexDirection: 'column' }}>
-      <header style={{ display: 'flex', justifyContent: 'space-between', padding: '1.5rem 2rem', alignItems: 'center' }}>
+      <header className="home-header" style={{ display: 'flex', justifyContent: 'space-between', padding: '1.5rem 2rem', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600, fontSize: '1.25rem', color: '#171717' }}>
           <FileEdit size={24} color="#3b82f6" />
           TrulyFree PDF
         </div>
         <div style={{ display: 'flex', gap: '2rem', alignItems: 'center' }}>
           <a href="#tools" style={{ color: '#64748b', textDecoration: 'none', fontWeight: 500 }}>All tools</a>
-          <span style={{ color: '#94a3b8', fontSize: '0.9rem' }}>No sign-up, no ads</span>
+          <span style={{ color: '#94a3b8', fontSize: '0.9rem' }} className="hide-on-mobile">No sign-up, no ads</span>
         </div>
       </header>
 
-      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '4rem 2rem' }}>
-        <h1 style={{ fontSize: '3rem', fontWeight: 700, textAlign: 'center', marginBottom: '1rem', color: '#171717', letterSpacing: '-0.02em' }}>
+      <main className="home-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '4rem 2rem' }}>
+        <h1 className="home-title" style={{ fontSize: '3rem', fontWeight: 700, textAlign: 'center', marginBottom: '1rem', color: '#171717', letterSpacing: '-0.02em' }}>
           Every pdf tool, free from start to finish
         </h1>
-        <p style={{ fontSize: '1.25rem', color: '#64748b', marginBottom: '3rem' }}>
+        <p style={{ fontSize: '1.25rem', color: '#64748b', marginBottom: '3rem', textAlign: 'center' }}>
           Drop a file in or pick a tool below
         </p>
 
@@ -104,7 +108,7 @@ export default function Home() {
                   {category.tools.map(tool => (
                     <button 
                       key={tool.id} 
-                      onClick={() => handleToolClick(tool.path)}
+                      onClick={() => handleToolClick(tool.path, tool.id)}
                       style={{ 
                         display: 'flex', 
                         alignItems: 'center', 
