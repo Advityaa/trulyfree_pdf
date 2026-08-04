@@ -1049,10 +1049,12 @@ const PdfViewer = forwardRef(({ pdfUrl, file, activeTool = 'select', setActiveTo
 
         const isSameLine = Math.abs(prevY - fragY) <= 4;
         const distanceX = fragX - (prevX + prevFrag.width);
-        const isCloseX = distanceX < 30;
+        // A space is typically 20-30% of font height. Allow up to ~50% of height, minimum 8px.
+        const maxGap = Math.max(frag.height * 0.5, 8);
+        const isCloseX = distanceX < maxGap;
 
         if (isSameLine && isCloseX) {
-          if (distanceX > 3 && !prevFrag.str.endsWith(' ') && !frag.str.startsWith(' ')) {
+          if (distanceX > (frag.height * 0.15) && !prevFrag.str.endsWith(' ') && !frag.str.startsWith(' ')) {
             currentLine.originalStr += ' ';
           }
           currentLine.originalStr += frag.str;
