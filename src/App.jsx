@@ -4,7 +4,8 @@ import EditorWorkspace from './pages/EditorWorkspace';
 import CompareWorkspace from './pages/CompareWorkspace';
 import BatchWorkspace from './pages/BatchWorkspace';
 import QuickToolFlow from './pages/QuickToolFlow';
-import './App.css'; // Or keep index.css imported in main.jsx
+import './App.css';
+import { Analytics } from '@vercel/analytics/react'; // Or keep index.css imported in main.jsx
 
 function App() {
   return (
