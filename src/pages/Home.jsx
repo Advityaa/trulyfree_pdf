@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileUp, FileEdit, Combine, Split, Trash2, FileText, FileImage, PenTool, Shield, Lock, Unlock, Minimize, ScanText } from 'lucide-react';
+import { FileUp, FileEdit, Combine, Split, Trash2, FileText, FileImage, PenTool, Shield, Lock, Unlock, Minimize, ScanText, GitCompare } from 'lucide-react';
 import '../App.css';
 
 const TOOL_CATEGORIES = [
@@ -31,6 +31,13 @@ const TOOL_CATEGORIES = [
       { id: 'editor', name: 'PDF Editor', icon: PenTool, path: '/editor' },
       { id: 'sign', name: 'Sign PDF', icon: FileEdit, path: '/editor' },
       { id: 'redact', name: 'Redact PDF', icon: Shield, path: '/editor' },
+    ]
+  },
+  {
+    title: 'Compare',
+    tools: [
+      { id: 'compare', name: 'Compare PDFs', icon: GitCompare, path: '/tool/compare' },
+      { id: 'batch', name: 'Batch Process', icon: FileEdit, path: '/tool/batch' },,
     ]
   }
 ];

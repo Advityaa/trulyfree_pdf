@@ -1,10 +1,10 @@
-from fastapi import FastAPI, UploadFile, File
-from fastapi.middleware.cors import CORSMiddleware
-import uvicorn
-from io import BytesIO
-import numpy as np
-from PIL import Image
+import re
 
+with open("backend/main.py", "r") as f:
+    content = f.read()
+
+# Add imports
+imports = """
 import fitz # PyMuPDF
 import pandas as pd
 from docx import Document
@@ -12,52 +12,11 @@ from docx.shared import Pt
 import tempfile
 import os
 from fastapi.responses import FileResponse
+"""
+content = content.replace("from PIL import Image", "from PIL import Image\n" + imports)
 
-
-app = FastAPI()
-
-# Allow CORS for local dev
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Try to load EasyOCR — it may not be installed yet
-reader = None
-try:
-    import easyocr
-    print("Loading EasyOCR model...")
-    reader = easyocr.Reader(['en'], gpu=False)
-    print("EasyOCR model loaded successfully.")
-except ImportError:
-    print("⚠️  EasyOCR not installed yet. OCR endpoint will return an error until it's installed.")
-except Exception as e:
-    print(f"⚠️  EasyOCR failed to load: {e}")
-
-@app.get("/api/health")
-async def health():
-    return {"status": "ok", "ocr_ready": reader is not None}
-
-@app.post("/api/ocr")
-async def process_ocr(file: UploadFile = File(...)):
-    if reader is None:
-        return {"success": False, "error": "EasyOCR is not installed yet. Run: pip install easyocr"}
-    try:
-        contents = await file.read()
-        image = Image.open(BytesIO(contents))
-        img_np = np.array(image)
-        
-        results = reader.readtext(img_np)
-        extracted_text = "\n".join([text for (_, text, _) in results])
-        
-        return {"success": True, "text": extracted_text}
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-
+# Add endpoints
+endpoints = """
 @app.post("/api/convert/xlsx")
 async def convert_to_xlsx(file: UploadFile = File(...)):
     try:
@@ -126,6 +85,9 @@ async def convert_to_docx(file: UploadFile = File(...)):
         return FileResponse(tmp_name, media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document", filename="Converted.docx")
     except Exception as e:
         return {"success": False, "error": str(e)}
+"""
 
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+content = content.replace("if __name__ == \"__main__\":", endpoints + "\nif __name__ == \"__main__\":")
+
+with open("backend/main.py", "w") as f:
+    f.write(content)
