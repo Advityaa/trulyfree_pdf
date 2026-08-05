@@ -46,141 +46,10 @@ const Thumbnail = ({ pageNum, pdfDoc, onClick, isActive, rotation }) => {
       }
     };
     renderThumb();
-  
-  const exportToPPTX = async () => {
-     try {
-        setIsExportMenuOpen(false);
-        if (!pages || pages.length === 0) return;
-        
-        const pres = new pptxgen();
-        
-        for (let i = 0; i < pageOrder.length; i++) {
-            const pageConfig = pageOrder[i];
-            // Re-render the page at high scale for PPTX
-            const pdfPage = pages.find(p => p.id === pageConfig.id);
-            if (!pdfPage) continue;
-            
-            const viewport = pdfPage.getViewport({ scale: 2.0, rotation: pageConfig.rotation || 0 });
-            const canvas = document.createElement('canvas');
-            canvas.width = viewport.width;
-            canvas.height = viewport.height;
-            const ctx = canvas.getContext('2d');
-            
-            await pdfPage.render({ canvasContext: ctx, viewport }).promise;
-            const dataUrl = canvas.toDataURL('image/png');
-            
-            // Add slide and set background
-            const slide = pres.addSlide();
-            slide.background = { data: dataUrl };
-        }
-        
-        pres.writeFile({ fileName: 'Presentation.pptx' });
-     } catch (err) {
-        console.error(err);
-        alert("Failed to export to PPTX: " + err.message);
-     }
-  };
-  
-  const exportToBackend = async (format) => {
-     try {
-        setIsExportMenuOpen(false);
-        const pdfBytes = await pdfDocRef.current.saveDocument();
-        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-        
-        const formData = new FormData();
-        formData.append('file', blob);
-        
-        const res = await fetch(`http://localhost:8000/api/convert/${format}`, {
-           method: 'POST',
-           body: formData
-        });
-        
-        if (!res.ok) {
-           const err = await res.json();
-           throw new Error(err.error || "Failed to convert");
-        }
-        
-        const outBlob = await res.blob();
-        const url = URL.createObjectURL(outBlob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `Converted.${format}`;
-        a.click();
-     } catch (err) {
-        alert("Conversion Failed: " + err.message);
-     }
-  };
-
   return () => {
       if (renderTask) renderTask.cancel();
     };
   }, [pdfDoc, pageNum, rotation]);
-  
-
-  const exportToPPTX = async () => {
-     try {
-        setIsExportMenuOpen(false);
-        if (!pages || pages.length === 0) return;
-        
-        const pres = new pptxgen();
-        
-        for (let i = 0; i < pageOrder.length; i++) {
-            const pageConfig = pageOrder[i];
-            // Re-render the page at high scale for PPTX
-            const pdfPage = pages.find(p => p.id === pageConfig.id);
-            if (!pdfPage) continue;
-            
-            const viewport = pdfPage.getViewport({ scale: 2.0, rotation: pageConfig.rotation || 0 });
-            const canvas = document.createElement('canvas');
-            canvas.width = viewport.width;
-            canvas.height = viewport.height;
-            const ctx = canvas.getContext('2d');
-            
-            await pdfPage.render({ canvasContext: ctx, viewport }).promise;
-            const dataUrl = canvas.toDataURL('image/png');
-            
-            // Add slide and set background
-            const slide = pres.addSlide();
-            slide.background = { data: dataUrl };
-        }
-        
-        pres.writeFile({ fileName: 'Presentation.pptx' });
-     } catch (err) {
-        console.error(err);
-        alert("Failed to export to PPTX: " + err.message);
-     }
-  };
-  
-  const exportToBackend = async (format) => {
-     try {
-        setIsExportMenuOpen(false);
-        const pdfBytes = await pdfDocRef.current.saveDocument();
-        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-        
-        const formData = new FormData();
-        formData.append('file', blob);
-        
-        const res = await fetch(`http://localhost:8000/api/convert/${format}`, {
-           method: 'POST',
-           body: formData
-        });
-        
-        if (!res.ok) {
-           const err = await res.json();
-           throw new Error(err.error || "Failed to convert");
-        }
-        
-        const outBlob = await res.blob();
-        const url = URL.createObjectURL(outBlob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `Converted.${format}`;
-        a.click();
-     } catch (err) {
-        alert("Conversion Failed: " + err.message);
-     }
-  };
-
   return (
     <div 
       onClick={onClick} 
@@ -312,71 +181,6 @@ const PdfViewer = forwardRef(({ pdfUrl, file, activeTool = 'select', setActiveTo
       const blob = new Blob([watermarkConfig.imageData], { type: watermarkConfig.imageType });
       const url = URL.createObjectURL(blob);
       setWatermarkImageUrl(url);
-    
-  const exportToPPTX = async () => {
-     try {
-        setIsExportMenuOpen(false);
-        if (!pages || pages.length === 0) return;
-        
-        const pres = new pptxgen();
-        
-        for (let i = 0; i < pageOrder.length; i++) {
-            const pageConfig = pageOrder[i];
-            // Re-render the page at high scale for PPTX
-            const pdfPage = pages.find(p => p.id === pageConfig.id);
-            if (!pdfPage) continue;
-            
-            const viewport = pdfPage.getViewport({ scale: 2.0, rotation: pageConfig.rotation || 0 });
-            const canvas = document.createElement('canvas');
-            canvas.width = viewport.width;
-            canvas.height = viewport.height;
-            const ctx = canvas.getContext('2d');
-            
-            await pdfPage.render({ canvasContext: ctx, viewport }).promise;
-            const dataUrl = canvas.toDataURL('image/png');
-            
-            // Add slide and set background
-            const slide = pres.addSlide();
-            slide.background = { data: dataUrl };
-        }
-        
-        pres.writeFile({ fileName: 'Presentation.pptx' });
-     } catch (err) {
-        console.error(err);
-        alert("Failed to export to PPTX: " + err.message);
-     }
-  };
-  
-  const exportToBackend = async (format) => {
-     try {
-        setIsExportMenuOpen(false);
-        const pdfBytes = await pdfDocRef.current.saveDocument();
-        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-        
-        const formData = new FormData();
-        formData.append('file', blob);
-        
-        const res = await fetch(`http://localhost:8000/api/convert/${format}`, {
-           method: 'POST',
-           body: formData
-        });
-        
-        if (!res.ok) {
-           const err = await res.json();
-           throw new Error(err.error || "Failed to convert");
-        }
-        
-        const outBlob = await res.blob();
-        const url = URL.createObjectURL(outBlob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `Converted.${format}`;
-        a.click();
-     } catch (err) {
-        alert("Conversion Failed: " + err.message);
-     }
-  };
-
   return () => URL.revokeObjectURL(url);
     }
   }, [watermarkConfig.imageData, watermarkConfig.imageType]);
@@ -1285,7 +1089,7 @@ const PdfViewer = forwardRef(({ pdfUrl, file, activeTool = 'select', setActiveTo
   const handleEnhanceOCR = async () => {
     try {
       setIsEnhancingOCR(true);
-      const page = await pdfDocRef.current.getPage(activePage.originalIndex + 1);
+      const page = await pdfDoc.getPage(activePage.originalIndex + 1);
       const viewport = page.getViewport({ scale: 2.0, rotation: 0 }); 
       const canvas = document.createElement('canvas');
       canvas.width = viewport.width;
@@ -1376,72 +1180,6 @@ const PdfViewer = forwardRef(({ pdfUrl, file, activeTool = 'select', setActiveTo
   };
 
   const isTextTool = activeTool === 'text';
-
-
-  const exportToPPTX = async () => {
-     try {
-        setIsExportMenuOpen(false);
-        if (!pages || pages.length === 0) return;
-        
-        const pres = new pptxgen();
-        
-        for (let i = 0; i < pageOrder.length; i++) {
-            const pageConfig = pageOrder[i];
-            // Re-render the page at high scale for PPTX
-            const pdfPage = pages.find(p => p.id === pageConfig.id);
-            if (!pdfPage) continue;
-            
-            const viewport = pdfPage.getViewport({ scale: 2.0, rotation: pageConfig.rotation || 0 });
-            const canvas = document.createElement('canvas');
-            canvas.width = viewport.width;
-            canvas.height = viewport.height;
-            const ctx = canvas.getContext('2d');
-            
-            await pdfPage.render({ canvasContext: ctx, viewport }).promise;
-            const dataUrl = canvas.toDataURL('image/png');
-            
-            // Add slide and set background
-            const slide = pres.addSlide();
-            slide.background = { data: dataUrl };
-        }
-        
-        pres.writeFile({ fileName: 'Presentation.pptx' });
-     } catch (err) {
-        console.error(err);
-        alert("Failed to export to PPTX: " + err.message);
-     }
-  };
-  
-  const exportToBackend = async (format) => {
-     try {
-        setIsExportMenuOpen(false);
-        const pdfBytes = await pdfDocRef.current.saveDocument();
-        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-        
-        const formData = new FormData();
-        formData.append('file', blob);
-        
-        const res = await fetch(`http://localhost:8000/api/convert/${format}`, {
-           method: 'POST',
-           body: formData
-        });
-        
-        if (!res.ok) {
-           const err = await res.json();
-           throw new Error(err.error || "Failed to convert");
-        }
-        
-        const outBlob = await res.blob();
-        const url = URL.createObjectURL(outBlob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `Converted.${format}`;
-        a.click();
-     } catch (err) {
-        alert("Conversion Failed: " + err.message);
-     }
-  };
-
   return (
     <div style={{ display: 'flex', flexDirection: 'row', width: '100%', height: '100%', overflow: 'hidden' }}>
       
@@ -1954,71 +1692,6 @@ const PdfViewer = forwardRef(({ pdfUrl, file, activeTool = 'select', setActiveTo
                       if (!innerContent) return null;
 
                       if (!tiled) {
-                      
-  const exportToPPTX = async () => {
-     try {
-        setIsExportMenuOpen(false);
-        if (!pages || pages.length === 0) return;
-        
-        const pres = new pptxgen();
-        
-        for (let i = 0; i < pageOrder.length; i++) {
-            const pageConfig = pageOrder[i];
-            // Re-render the page at high scale for PPTX
-            const pdfPage = pages.find(p => p.id === pageConfig.id);
-            if (!pdfPage) continue;
-            
-            const viewport = pdfPage.getViewport({ scale: 2.0, rotation: pageConfig.rotation || 0 });
-            const canvas = document.createElement('canvas');
-            canvas.width = viewport.width;
-            canvas.height = viewport.height;
-            const ctx = canvas.getContext('2d');
-            
-            await pdfPage.render({ canvasContext: ctx, viewport }).promise;
-            const dataUrl = canvas.toDataURL('image/png');
-            
-            // Add slide and set background
-            const slide = pres.addSlide();
-            slide.background = { data: dataUrl };
-        }
-        
-        pres.writeFile({ fileName: 'Presentation.pptx' });
-     } catch (err) {
-        console.error(err);
-        alert("Failed to export to PPTX: " + err.message);
-     }
-  };
-  
-  const exportToBackend = async (format) => {
-     try {
-        setIsExportMenuOpen(false);
-        const pdfBytes = await pdfDocRef.current.saveDocument();
-        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-        
-        const formData = new FormData();
-        formData.append('file', blob);
-        
-        const res = await fetch(`http://localhost:8000/api/convert/${format}`, {
-           method: 'POST',
-           body: formData
-        });
-        
-        if (!res.ok) {
-           const err = await res.json();
-           throw new Error(err.error || "Failed to convert");
-        }
-        
-        const outBlob = await res.blob();
-        const url = URL.createObjectURL(outBlob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `Converted.${format}`;
-        a.click();
-     } catch (err) {
-        alert("Conversion Failed: " + err.message);
-     }
-  };
-
   return (
                           <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}>
                             {innerContent}
@@ -2084,71 +1757,6 @@ const PdfViewer = forwardRef(({ pdfUrl, file, activeTool = 'select', setActiveTo
                    };
 
                    if (field.id) {
-                   
-  const exportToPPTX = async () => {
-     try {
-        setIsExportMenuOpen(false);
-        if (!pages || pages.length === 0) return;
-        
-        const pres = new pptxgen();
-        
-        for (let i = 0; i < pageOrder.length; i++) {
-            const pageConfig = pageOrder[i];
-            // Re-render the page at high scale for PPTX
-            const pdfPage = pages.find(p => p.id === pageConfig.id);
-            if (!pdfPage) continue;
-            
-            const viewport = pdfPage.getViewport({ scale: 2.0, rotation: pageConfig.rotation || 0 });
-            const canvas = document.createElement('canvas');
-            canvas.width = viewport.width;
-            canvas.height = viewport.height;
-            const ctx = canvas.getContext('2d');
-            
-            await pdfPage.render({ canvasContext: ctx, viewport }).promise;
-            const dataUrl = canvas.toDataURL('image/png');
-            
-            // Add slide and set background
-            const slide = pres.addSlide();
-            slide.background = { data: dataUrl };
-        }
-        
-        pres.writeFile({ fileName: 'Presentation.pptx' });
-     } catch (err) {
-        console.error(err);
-        alert("Failed to export to PPTX: " + err.message);
-     }
-  };
-  
-  const exportToBackend = async (format) => {
-     try {
-        setIsExportMenuOpen(false);
-        const pdfBytes = await pdfDocRef.current.saveDocument();
-        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-        
-        const formData = new FormData();
-        formData.append('file', blob);
-        
-        const res = await fetch(`http://localhost:8000/api/convert/${format}`, {
-           method: 'POST',
-           body: formData
-        });
-        
-        if (!res.ok) {
-           const err = await res.json();
-           throw new Error(err.error || "Failed to convert");
-        }
-        
-        const outBlob = await res.blob();
-        const url = URL.createObjectURL(outBlob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `Converted.${format}`;
-        a.click();
-     } catch (err) {
-        alert("Conversion Failed: " + err.message);
-     }
-  };
-
   return (
                        <div key={`new-${i}`} style={{ ...commonStyle, display: 'flex', flexDirection: 'column' }}>
                          <div style={{ position: 'absolute', top: '-24px', left: 0, display: 'flex', gap: '4px' }}>
@@ -2201,71 +1809,6 @@ const PdfViewer = forwardRef(({ pdfUrl, file, activeTool = 'select', setActiveTo
                      return <input key={i} type="radio" style={{...commonStyle, cursor: 'pointer'}} checked={value === field.name} onChange={onChange} />;
                    }
                    if (field.type === 'Ch') {
-                   
-  const exportToPPTX = async () => {
-     try {
-        setIsExportMenuOpen(false);
-        if (!pages || pages.length === 0) return;
-        
-        const pres = new pptxgen();
-        
-        for (let i = 0; i < pageOrder.length; i++) {
-            const pageConfig = pageOrder[i];
-            // Re-render the page at high scale for PPTX
-            const pdfPage = pages.find(p => p.id === pageConfig.id);
-            if (!pdfPage) continue;
-            
-            const viewport = pdfPage.getViewport({ scale: 2.0, rotation: pageConfig.rotation || 0 });
-            const canvas = document.createElement('canvas');
-            canvas.width = viewport.width;
-            canvas.height = viewport.height;
-            const ctx = canvas.getContext('2d');
-            
-            await pdfPage.render({ canvasContext: ctx, viewport }).promise;
-            const dataUrl = canvas.toDataURL('image/png');
-            
-            // Add slide and set background
-            const slide = pres.addSlide();
-            slide.background = { data: dataUrl };
-        }
-        
-        pres.writeFile({ fileName: 'Presentation.pptx' });
-     } catch (err) {
-        console.error(err);
-        alert("Failed to export to PPTX: " + err.message);
-     }
-  };
-  
-  const exportToBackend = async (format) => {
-     try {
-        setIsExportMenuOpen(false);
-        const pdfBytes = await pdfDocRef.current.saveDocument();
-        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-        
-        const formData = new FormData();
-        formData.append('file', blob);
-        
-        const res = await fetch(`http://localhost:8000/api/convert/${format}`, {
-           method: 'POST',
-           body: formData
-        });
-        
-        if (!res.ok) {
-           const err = await res.json();
-           throw new Error(err.error || "Failed to convert");
-        }
-        
-        const outBlob = await res.blob();
-        const url = URL.createObjectURL(outBlob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `Converted.${format}`;
-        a.click();
-     } catch (err) {
-        alert("Conversion Failed: " + err.message);
-     }
-  };
-
   return (
                        <select key={i} style={commonStyle} value={value} onChange={onChange}>
                          {field.options.map((opt, oIdx) => (
@@ -2328,71 +1871,6 @@ const PdfViewer = forwardRef(({ pdfUrl, file, activeTool = 'select', setActiveTo
                   {/* Render Completed Redactions */}
                   {(redactions[activePageId] || []).map((redact, i) => {
                     const vRect = getViewportRect(redact.pdfX, redact.pdfY, redact.pdfW, redact.pdfH);
-                  
-  const exportToPPTX = async () => {
-     try {
-        setIsExportMenuOpen(false);
-        if (!pages || pages.length === 0) return;
-        
-        const pres = new pptxgen();
-        
-        for (let i = 0; i < pageOrder.length; i++) {
-            const pageConfig = pageOrder[i];
-            // Re-render the page at high scale for PPTX
-            const pdfPage = pages.find(p => p.id === pageConfig.id);
-            if (!pdfPage) continue;
-            
-            const viewport = pdfPage.getViewport({ scale: 2.0, rotation: pageConfig.rotation || 0 });
-            const canvas = document.createElement('canvas');
-            canvas.width = viewport.width;
-            canvas.height = viewport.height;
-            const ctx = canvas.getContext('2d');
-            
-            await pdfPage.render({ canvasContext: ctx, viewport }).promise;
-            const dataUrl = canvas.toDataURL('image/png');
-            
-            // Add slide and set background
-            const slide = pres.addSlide();
-            slide.background = { data: dataUrl };
-        }
-        
-        pres.writeFile({ fileName: 'Presentation.pptx' });
-     } catch (err) {
-        console.error(err);
-        alert("Failed to export to PPTX: " + err.message);
-     }
-  };
-  
-  const exportToBackend = async (format) => {
-     try {
-        setIsExportMenuOpen(false);
-        const pdfBytes = await pdfDocRef.current.saveDocument();
-        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-        
-        const formData = new FormData();
-        formData.append('file', blob);
-        
-        const res = await fetch(`http://localhost:8000/api/convert/${format}`, {
-           method: 'POST',
-           body: formData
-        });
-        
-        if (!res.ok) {
-           const err = await res.json();
-           throw new Error(err.error || "Failed to convert");
-        }
-        
-        const outBlob = await res.blob();
-        const url = URL.createObjectURL(outBlob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `Converted.${format}`;
-        a.click();
-     } catch (err) {
-        alert("Conversion Failed: " + err.message);
-     }
-  };
-
   return (
                       <rect 
                         key={`r-${i}`} 
@@ -2487,72 +1965,6 @@ const PdfViewer = forwardRef(({ pdfUrl, file, activeTool = 'select', setActiveTo
                       />
                     );
                   }
-
-                
-  const exportToPPTX = async () => {
-     try {
-        setIsExportMenuOpen(false);
-        if (!pages || pages.length === 0) return;
-        
-        const pres = new pptxgen();
-        
-        for (let i = 0; i < pageOrder.length; i++) {
-            const pageConfig = pageOrder[i];
-            // Re-render the page at high scale for PPTX
-            const pdfPage = pages.find(p => p.id === pageConfig.id);
-            if (!pdfPage) continue;
-            
-            const viewport = pdfPage.getViewport({ scale: 2.0, rotation: pageConfig.rotation || 0 });
-            const canvas = document.createElement('canvas');
-            canvas.width = viewport.width;
-            canvas.height = viewport.height;
-            const ctx = canvas.getContext('2d');
-            
-            await pdfPage.render({ canvasContext: ctx, viewport }).promise;
-            const dataUrl = canvas.toDataURL('image/png');
-            
-            // Add slide and set background
-            const slide = pres.addSlide();
-            slide.background = { data: dataUrl };
-        }
-        
-        pres.writeFile({ fileName: 'Presentation.pptx' });
-     } catch (err) {
-        console.error(err);
-        alert("Failed to export to PPTX: " + err.message);
-     }
-  };
-  
-  const exportToBackend = async (format) => {
-     try {
-        setIsExportMenuOpen(false);
-        const pdfBytes = await pdfDocRef.current.saveDocument();
-        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-        
-        const formData = new FormData();
-        formData.append('file', blob);
-        
-        const res = await fetch(`http://localhost:8000/api/convert/${format}`, {
-           method: 'POST',
-           body: formData
-        });
-        
-        if (!res.ok) {
-           const err = await res.json();
-           throw new Error(err.error || "Failed to convert");
-        }
-        
-        const outBlob = await res.blob();
-        const url = URL.createObjectURL(outBlob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `Converted.${format}`;
-        a.click();
-     } catch (err) {
-        alert("Conversion Failed: " + err.message);
-     }
-  };
-
   return (
                     <span
                       key={index}
