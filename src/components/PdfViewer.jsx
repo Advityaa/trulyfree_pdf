@@ -425,7 +425,12 @@ const PdfViewer = forwardRef(({ pdfUrl, file, activeTool = 'select', setActiveTo
         const form = doc.getForm();
         if (!form) return;
         
-        const pdfjsDoc = await pdfjsLib.getDocument({ data: arrayBuffer, password: unlockPassword || undefined }).promise;
+        const pdfjsDoc = await pdfjsLib.getDocument({ 
+          data: arrayBuffer, 
+          password: unlockPassword || undefined,
+          cMapUrl: 'https://unpkg.com/pdfjs-dist@6.1.200/cmaps/',
+          cMapPacked: true
+        }).promise;
         const parsedFields = [];
         const initialValues = {};
         
@@ -888,7 +893,12 @@ const PdfViewer = forwardRef(({ pdfUrl, file, activeTool = 'select', setActiveTo
           creator: pdfLibDocMeta.getCreator() || '',
           producer: pdfLibDocMeta.getProducer() || ''
         });
-        const pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer, password: unlockPassword || undefined }).promise;
+        const pdfDoc = await pdfjsLib.getDocument({ 
+          data: arrayBuffer, 
+          password: unlockPassword || undefined,
+          cMapUrl: 'https://unpkg.com/pdfjs-dist@6.1.200/cmaps/',
+          cMapPacked: true
+        }).promise;
         setPdfDoc(pdfDoc);
         setNumPages(pdfDoc.numPages);
         
