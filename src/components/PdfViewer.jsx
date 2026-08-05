@@ -1495,6 +1495,17 @@ const PdfViewer = forwardRef(({ pdfUrl, file, activeTool = 'select', setActiveTo
               <button className={`tool-btn ${activeTool === 'text' ? 'active' : ''}`} onClick={() => setActiveTool('text')} title="Edit Text">
                 <Type size={18} />
               </button>
+              {activeTool === 'text' && (
+                <button 
+                  className="tool-btn" 
+                  onClick={handleEnhanceOCR} 
+                  disabled={isEnhancingOCR}
+                  title="Enhance with OCR (Detect images as text)"
+                  style={{ background: '#e0e7ff', color: '#4338ca', fontSize: '0.8rem', padding: '0 8px', width: 'auto', fontWeight: '600' }}
+                >
+                  {isEnhancingOCR ? 'Scanning...' : 'Enhance with OCR'}
+                </button>
+              )}
               <button className={`tool-btn ${activeTool === 'draw' ? 'active' : ''}`} onClick={() => setActiveTool('draw')} title="Draw">
                 <Pen size={18} />
               </button>
