@@ -227,7 +227,10 @@ const PdfViewer = forwardRef(({ pdfUrl, file, activeTool = 'select', setActiveTo
   const activePageId = activePage ? activePage.id : null;
   const [rotation, setRotation] = useState(0);
   const canvasRef = useRef(null);
+
   const [textLines, setTextLines] = useState([]);
+  const [isEnhancingOCR, setIsEnhancingOCR] = useState(false);
+
   const [scale, setScale] = useState(1.5);
   
   const [editingId, setEditingId] = useState(null);
@@ -1266,6 +1269,72 @@ const PdfViewer = forwardRef(({ pdfUrl, file, activeTool = 'select', setActiveTo
     });
     setCurrentAnnotation(null);
     e.currentTarget.releasePointerCapture(e.pointerId);
+  };
+
+
+  const handleEnhanceOCR = async () => {
+    try {
+      setIsEnhancingOCR(true);
+      const page = await pdfDocRef.current.getPage(activePage.originalIndex + 1);
+      const viewport = page.getViewport({ scale: 2.0, rotation: 0 }); 
+      const canvas = document.createElement('canvas');
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0,0,canvas.width,canvas.height);
+      await page.render({ canvasContext: ctx, viewport }).promise;
+      
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 1.0));
+      const formData = new FormData();
+      formData.append('file', blob, 'page.jpg');
+      
+      const res = await fetch('http://localhost:8000/api/ocr/analyze', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
+      
+      const ocrLines = data.blocks.map(block => {
+         const unscaledW = block.width / 2.0;
+         const unscaledH = block.height / 2.0;
+         const unscaledX = block.x / 2.0;
+         const unscaledY = block.y / 2.0; 
+         
+         const pdfY = (viewport.height / 2.0) - unscaledY - unscaledH;
+         
+         const baseTransform = [unscaledH, 0, 0, unscaledH, unscaledX, pdfY];
+         const scaledTransform = pdfjsLib.Util.transform(currentViewport.transform, baseTransform);
+         
+         return {
+            originalStr: block.text,
+            isOcr: true,
+            unscaledTransform: baseTransform,
+            transform: scaledTransform,
+            width: unscaledW * scale,
+            unscaledWidth: unscaledW,
+            fontName: 'OCR-Font'
+         };
+      });
+      
+      // Merge with existing textLines, avoiding duplicates
+      setTextLines(prev => {
+         const newLines = ocrLines.filter(ocrLine => {
+            const cx = ocrLine.unscaledTransform[4] + ocrLine.unscaledWidth / 2;
+            const cy = ocrLine.unscaledTransform[5] + ocrLine.unscaledTransform[3] / 2;
+            return !prev.some(line => {
+               const lx = line.unscaledTransform[4];
+               const ly = line.unscaledTransform[5];
+               const lw = line.unscaledWidth;
+               const lh = line.unscaledTransform[3]; 
+               return cx >= lx - 5 && cx <= lx + lw + 5 && cy >= ly - 5 && cy <= ly + lh + 5;
+            });
+         });
+         return [...prev, ...newLines];
+      });
+    } catch(err) {
+      alert("OCR failed: " + err.message);
+    } finally {
+      setIsEnhancingOCR(false);
+    }
   };
 
   const handleTextClick = (index) => {
