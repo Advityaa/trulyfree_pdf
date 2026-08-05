@@ -850,6 +850,7 @@ const PdfViewer = forwardRef(({ pdfUrl, file, activeTool = 'select', setActiveTo
             originalStr: frag.str,
             fragments: [frag],
             transform: frag.transform,
+            unscaledTransform: frag.unscaledTransform,
             width: frag.width,
             unscaledWidth: frag.unscaledWidth,
             fontName: frag.fontName
@@ -883,6 +884,7 @@ const PdfViewer = forwardRef(({ pdfUrl, file, activeTool = 'select', setActiveTo
             originalStr: frag.str,
             fragments: [frag],
             transform: frag.transform,
+            unscaledTransform: frag.unscaledTransform,
             width: frag.width,
             unscaledWidth: frag.unscaledWidth,
             fontName: frag.fontName
